@@ -27,6 +27,7 @@ test "delete word" {
     try trie.insert("hello");
     try testing.expect(try trie.contains("hello") == 1);
     try trie.delete("hello");
+    std.debug.print("Result: {any}", .{try trie.contains("hello")});
     try testing.expect(try trie.contains("hello") == 0);
 
     trie.deinit();

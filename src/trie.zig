@@ -7,7 +7,7 @@ pub const Trie = struct {
     pub const errors = error{ childrenNodeAllocation, wordDesntExist };
 
     pub const Node = struct {
-        children: std.AutoArrayHashMap(u8, *Node),
+        children: [256]?*Node,
         sentnce_end_cnt: i64,
         allocator: *std.mem.Allocator,
 
@@ -18,7 +18,9 @@ pub const Trie = struct {
                 .allocator = allocator,
             };
 
-            ret.children = std.AutoArrayHashMap(u8, *Node).init(allocator.*);
+            for (&ret.children) |*child| {
+                child.* = null;
+            }
 
             return ret;
         }
@@ -29,18 +31,14 @@ pub const Trie = struct {
                 return;
             }
 
-            if (!self.children.contains(word[0])) {
+            if (self.children[word[0]]) |nnchild| {
+                try nnchild.insert(word[1..]);
+            } else {
                 var tmp_node: *Node = try self.allocator.create(Node);
                 tmp_node.* = try Node.init(self.allocator);
-                try self.children.put(word[0], tmp_node);
-            }
+                self.children[word[0]] = tmp_node;
 
-            var next_node: ?*Node = self.children.get(word[0]);
-
-            if (next_node) |nonopt_next_node| {
-                return nonopt_next_node.insert(word[1..]);
-            } else {
-                return errors.childrenNodeAllocation;
+                try self.children[word[0]].?.insert(word[1..]);
             }
         }
 
@@ -49,9 +47,7 @@ pub const Trie = struct {
                 return self.sentnce_end_cnt;
             }
 
-            var next_node: ?*Node = self.children.get(word[0]);
-
-            if (next_node) |nonopt_next_node| {
+            if (self.children[word[0]]) |nonopt_next_node| {
                 return nonopt_next_node.contains(word[1..]);
             } else {
                 return 0;
@@ -60,28 +56,32 @@ pub const Trie = struct {
 
         fn delete(self: *Node, word: []const u8) !void {
             if (word.len == 0) {
-                if (self.children.count() == 0 and self.sentnce_end_cnt == 1) {
+                if (self.sentnce_end_cnt <= 0) {
+                    return errors.wordDesntExist;
+                }
+
+                for (self.children) |child| {
+                    if (child) |_| {
+                        self.sentnce_end_cnt -= 1;
+                        return;
+                    }
+                }
+
+                if (self.sentnce_end_cnt == 1) {
                     self.sentnce_end_cnt = -1;
                     return;
                 }
 
-                if (self.sentnce_end_cnt > 0) {
-                    self.sentnce_end_cnt -= 1;
-                    return;
-                }
-
-                return errors.wordDesntExist;
+                self.sentnce_end_cnt -= 1;
+                return;
             }
 
-            var next_node: ?*Node = self.children.get(word[0]);
-
-            if (next_node) |nonopt_next_node| {
+            if (self.children[word[0]]) |nonopt_next_node| {
                 try nonopt_next_node.delete(word[1..]);
 
                 if (nonopt_next_node.sentnce_end_cnt == -1) {
-                    if (self.children.orderedRemove(word[0])) {
-                        return;
-                    }
+                    self.allocator.destroy(nonopt_next_node); // Corrected destroy call
+                    self.children[word[0]] = null;
                 }
 
                 return;
@@ -90,15 +90,22 @@ pub const Trie = struct {
             }
         }
 
+        //fn get_size(self: *Node) usize {
+        //var size : usize = 0;
+
+        //var +=
+
+        //return size;
+        //}
+
         fn deinit(self: *Node) void {
-            var child_it = self.children.iterator();
-
-            while (child_it.next()) |entry| {
-                const next_node = entry.value_ptr.*;
-                next_node.deinit();
+            for (&self.children, 0..) |*child, index| {
+                if (child.* != null) {
+                    self.children[index].?.deinit();
+                    self.allocator.destroy(child.*.?); // Corrected destroy call
+                    child.* = null; // Explicitly set to null after destruction
+                }
             }
-
-            self.children.deinit();
         }
     };
 
@@ -124,6 +131,10 @@ pub const Trie = struct {
 
     pub fn delete(self: *Trie, word: []const u8) !void {
         try self.root.delete(word);
+    }
+
+    pub fn get_size(self: *Trie) usize {
+        return self.root.get_size();
     }
 
     pub fn deinit(self: *Trie) void {
