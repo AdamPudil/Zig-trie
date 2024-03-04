@@ -1,5 +1,7 @@
 const std = @import("std");
 
+pub const VERSION = "1.0";
+
 pub const Trie = struct {
     root: *Node,
     allocator: *std.mem.Allocator,
