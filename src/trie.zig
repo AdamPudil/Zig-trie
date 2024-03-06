@@ -92,13 +92,21 @@ pub const Trie = struct {
             }
         }
 
-        //fn get_size(self: *Node) usize {
-        //var size : usize = 0;
+        fn get_size(self: *Node) usize {
+            var size: usize = 0;
 
-        //var +=
+            size += 256 * 8;
+            size += 8;
+            size += 8;
 
-        //return size;
-        //}
+            for (self.children) |child| {
+                if (child) |nnchild| {
+                    size += nnchild.get_size();
+                }
+            }
+
+            return size;
+        }
 
         fn deinit(self: *Node) void {
             for (&self.children, 0..) |*child, index| {

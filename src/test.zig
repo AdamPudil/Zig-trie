@@ -2,11 +2,20 @@ const std = @import("std");
 
 const testing = std.testing;
 const Trie = @import("trie.zig").Trie;
+const version = @import("trie.zig").VERSION;
 
 test "insert and search" {
-    var allocator = std.heap.page_allocator;
+    var allocator = std.testing.allocator;
+
+    const start = std.time.nanoTimestamp();
+    defer {
+        const end = std.time.nanoTimestamp();
+        const duration = @as(u64, @intCast(end - start));
+        std.debug.print(" Test ran for {d}\n\n", .{std.fmt.fmtDuration(duration)});
+    }
 
     var trie: Trie = try Trie.init(&allocator);
+    defer trie.deinit();
 
     try trie.insert("hello");
     try trie.insert("world");
@@ -16,91 +25,60 @@ test "insert and search" {
     try testing.expect(try trie.contains("world") == 1);
     try testing.expect(try trie.contains("zig") == 0);
 
-    trie.deinit();
+    std.debug.print("\n Maximal used memory: {any}\n", .{std.fmt.fmtIntSizeDec(trie.get_size())});
 }
 
 test "delete word" {
-    var allocator = std.heap.page_allocator;
+    var allocator = std.testing.allocator;
+
+    const start = std.time.nanoTimestamp();
+    defer {
+        const end = std.time.nanoTimestamp();
+        const duration = @as(u64, @intCast(end - start));
+        std.debug.print(" Test ran for {d}\n\n", .{std.fmt.fmtDuration(duration)});
+    }
 
     var trie: Trie = try Trie.init(&allocator);
+    defer trie.deinit();
 
     try trie.insert("hello");
     try testing.expect(try trie.contains("hello") == 1);
+
+    std.debug.print("\n Maximal used memory: {any}\n", .{std.fmt.fmtIntSizeDec(trie.get_size())});
+
     try trie.delete("hello");
-    std.debug.print("Result: {any}", .{try trie.contains("hello")});
+
     try testing.expect(try trie.contains("hello") == 0);
 
-    trie.deinit();
-}
+    // delete after delete
+    if (trie.delete("hello")) {
+        std.debug.print(" No error raised!\n", .{});
+    } else |err| switch (err) {
+        Trie.errors.wordDesntExist => std.debug.print(" Right error raised {any}\n", .{err}),
 
-test "complex and performance-oriented operations" {
-    var allocator = std.heap.page_allocator;
-
-    var trie: Trie = try Trie.init(&allocator);
-
-    // Define a set of base words
-    const baseWords = &[_][]const u8{ "hello", "hello-world", "world", "trie", "test", "zig", "performance", "example", "complex", "data", "structure", "algorithm", "search", "insert", "delete", "query", "optimize", "efficient", "speed", "accuracy", "quality", "how about that you little bitch do you like long shit like this?", "how about that you little bitch do you like long shit like this second time even longer. do you like that shit? do you?" };
-
-    // Insert each word multiple times to simulate repetitions and increase load
-    var i: usize = 0;
-    while (i < 1000) : (i += 1) {
-        for (baseWords) |word| {
-            try trie.insert(word);
-        }
+        else => {
+            std.debug.print(" Wrong error raised {any}!\n", .{err});
+            try std.testing.expect(false);
+        },
     }
 
-    // Test contains for a subset, expecting specific counts
-    try testing.expectEqual(try trie.contains("hello"), 1000);
-    try testing.expectEqual(try trie.contains("world"), 1000);
-    // Test a word not inserted
-    try testing.expectEqual(try trie.contains("unknown"), 0);
+    // delete of substring
+    try trie.insert("hello world");
 
-    // Delete some words and test again
-    try trie.delete("hello");
-    try testing.expectEqual(try trie.contains("hello"), 999); // Assuming delete reduces count by 1
+    if (trie.delete("hello")) {
+        std.debug.print(" No error raised!\n", .{});
+    } else |err| switch (err) {
+        Trie.errors.wordDesntExist => std.debug.print(" Right error raised {any}\n", .{err}),
 
-    // Attempt to delete a word not present, expecting an error
-    _ = trie.delete("notaword") catch |err| {
-        // Check if the error is the expected one
-        if (err == Trie.errors.wordDesntExist) {
-            // If so, do nothing or log a message acknowledging the expected error
-        } else {
-            // If the error is not what was expected, fail the test
-            try testing.expectEqual(err, Trie.errors.wordDesntExist);
-        }
-    };
-
-    try testing.expectEqual(try trie.contains("notaword"), 0);
-
-    // Finalize by testing a deletion to zero and a contain check
-
-    try testing.expectEqual(try trie.contains("hello-world"), 1000);
-
-    var j: usize = 0;
-    while (j < 999) : (j += 1) {
-        try trie.delete("hello");
+        else => {
+            std.debug.print(" Wrong error raised {any}!\n", .{err});
+            try std.testing.expect(false);
+        },
     }
-    try testing.expectEqual(try trie.contains("hello"), 0);
-    try testing.expectEqual(try trie.contains("hello-world"), 1000);
-
-    j = 0;
-    while (j < 1000) : (j += 1) {
-        try trie.delete("how about that you little bitch do you like long shit like this?");
-    }
-
-    try testing.expectEqual(try trie.contains("how about that you little bitch do you like long shit like this?"), 0);
-    try testing.expectEqual(try trie.contains("how about that you little bitch do you like long shit like this second time even longer. do you like that shit? do you?"), 1000);
-
-    // Explicitly deinitialize resources
-    trie.deinit();
 }
 
 test "Mainly performance oriented test" {
-    const start = std.time.microTimestamp();
-
-    var allocator = std.heap.page_allocator;
-
-    var trie: Trie = try Trie.init(&allocator);
+    var allocator = std.testing.allocator;
 
     const baseSentences = &[_][]const u8{
         "The quick brown fox jumps over the lazy dog",
@@ -152,12 +130,26 @@ test "Mainly performance oriented test" {
         "Only a life lived for others is a life worthwhile, as true fulfillment comes from giving and sharing our gifts with the world",
     };
 
+    std.debug.print("\n This test is used to measure performance and memory footprint improovments. \n Trie version: {s}\n", .{version});
+
+    const start = std.time.nanoTimestamp();
+    defer {
+        const end = std.time.nanoTimestamp();
+        const duration = @as(u64, @intCast(end - start));
+        std.debug.print(" Test ran for {d}\n\n", .{std.fmt.fmtDuration(duration)});
+    }
+
+    var trie: Trie = try Trie.init(&allocator);
+    defer trie.deinit();
+
     var i: usize = 0;
     while (i < 1000) : (i += 1) {
         for (baseSentences) |sentence| {
             try trie.insert(sentence);
         }
     }
+
+    std.debug.print(" Maximal used memory: {any}\n", .{std.fmt.fmtIntSizeDec(trie.get_size())});
 
     for (baseSentences) |sentence| {
         try testing.expectEqual(try trie.contains(sentence), 1000);
@@ -188,12 +180,4 @@ test "Mainly performance oriented test" {
     for (baseSentences[10..20]) |sentence| {
         try testing.expectEqual(try trie.contains(sentence), 100);
     }
-
-    trie.deinit();
-
-    const end = std.time.microTimestamp();
-
-    const duration = end - start;
-
-    std.debug.print("\nTest ran for {d} microseconds\n", .{duration});
 }

@@ -9,18 +9,14 @@ ToDo:
 
 ## Tests
 
-For each version run 5 tests.  
+For each version run all tests 5 times. 
+For performance tracking is used test "Mainly performance oriented test"  
 Here are test results (time(uS) and memory footprint(Bytes)).   
 I'm hoping future versions will be better and better.
 
-|       |Test1|      |Test2|      |Test3|      |Test4|      |Test5|
-|-------|-----|------|-----|------|-----|------|-----|------|-----|
-|Version|Time |Memory|Time |Memory|Time |Memory|Time |Memory|Time |
-|       |     |      |     |      |     |      |     |      |     |
-|       |     |      |     |      |     |      |     |      |     |
-|       |     |      |     |      |     |      |     |      |     |
-|       |     |      |     |      |     |      |     |      |     |
-|       |     |      |     |      |     |      |     |      |     |
-|       |     |      |     |      |     |      |     |      |     |
-|       |     |      |     |      |     |      |     |      |     |
-|       |     |      |     |      |     |      |     |      |     |
+|       |Time  |      |      |      |      |      |Memory |     
+|-------|------|------|------|------|------|------|-------|
+|Version|Test1 |Test2 |Test3 |Test4 |Test5 |Avrage|       |
+|V1.0   |65.0ms|63.9ms|70.1ms|62.1ms|66.9ms|65.6ms|3.514MB|
+|       |      |      |      |      |      |      |       |
+|       |      |      |      |      |      |      |       |
